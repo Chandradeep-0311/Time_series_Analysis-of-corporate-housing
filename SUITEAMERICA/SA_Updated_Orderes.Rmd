@@ -1,0 +1,139 @@
+```{r}
+
+## 1. Setting the working directory and clearing the R environment
+rm(list=ls(all=T))
+
+
+## 2. Loading the required libraries 
+
+library(RColorBrewer)
+library(ipred)
+library(ROSE)
+library(ada)
+library(rpart.plot)
+library(rpart)
+library(randomForest)
+library(C50)
+library(factoextra)
+library(xgboost)
+library(glmnet)
+library(mice)
+library(dplyr)
+library(ROCR)
+library(DMwR)
+library(car)
+library(MASS)
+library(vegan)
+library(dummies)
+library(infotheo)
+library(lubridate)
+library(caTools)
+library(caret)
+library(lubridate)
+library(e1071)
+library(corrplot)
+library(ggplot2)
+
+```
+
+
+
+
+```{r}
+
+### Setting Directory ######
+setwd("~/Desktop/SUITEAMERICA")
+
+### Reading CSV file #######
+SA<- read.csv(file = "Ordersdata.csv", header =  TRUE,na.strings = "NULL")
+
+### VIEWING FILE
+View(SA)
+dim(SA)
+# 46850 *9
+str(SA) ### Str of DATA
+summary(SA) ### Summary of DATA
+
+
+#### Converting to date format 
+SA$MoveInDate = as.Date(SA$MoveInDate,format = "%Y-%m-%d")
+SA$MoveOutDate = as.Date(SA$MoveOutDate,format = "%Y-%m-%d")
+
+#### Converting to as.integer 
+SA$DailyRent =  as.integer(SA$DailyRent)
+str(SA)
+
+#### Counting number of dates from MoveIn - MoveOut
+SA$Stay = as.integer((SA$MoveOutDate)-(SA$MoveInDate))
+
+#### Counting Weekdays from MoveIn - MoveOut
+SA$Movein_Day = weekdays.POSIXt(SA$MoveInDate)
+SA$Moveout_Day = weekdays.POSIXt(SA$MoveOutDate)
+
+
+#### Separate Monthes From MoveIn - MoveOut
+
+library(lubridate)
+SA$Movein_Month = month(SA$MoveInDate,label=TRUE,abbr=FALSE)
+SA$Moveout_Month = month(SA$MoveOutDate,label=TRUE,abbr=FALSE)
+
+### Checking duplicates In OrderID
+unique.Order <- as.data.frame(table(SA$Order.))
+
+#### Separate years From MoveIn - MoveOut
+SA$MoveinYear = year(SA$MoveInDate)
+SA$MoveOutYear = year(SA$MoveOutDate)
+
+#### Removing OrderID
+SA$Order. = NULL
+str(SA)
+
+## Converting all new colums to as.factor 
+SA$Movein_Day = as.factor(as.character(SA$Movein_Day))
+SA$Moveout_Day =  as.factor(as.character(SA$Moveout_Day))
+SA$Movein_Month= as.factor(as.character(SA$Movein_Month))
+SA$Moveout_Month = as.factor(as.character(SA$Moveout_Month))
+
+## Table form of Status
+table(SA$Status)
+View(SA)
+dim(SA) 
+# 46850    14
+
+### Removing "CANCEL", "QUOTE", "VOID" from the status column 
+sa  <- SA[ ! SA$Status %in% c("CANCEL","QUOTE","VOID"), ]
+#sa1 <- SA[  SA$Status %in% c("CANCEL","QUOTE","VOID"), ]
+
+### Eliminating  years row which are less than 2099 and  greater tha 2013
+SA1 <- sa[sa$MoveOutYear < 2099,]
+SA1 <- SA1[SA1$MoveinYear > 2013,]
+
+####Removing rows which are greater than 0
+SA1 <- SA1[SA1$Stay > 0,]
+
+## To count Number of missing values in each row
+SA1$na.sum <- apply(SA1,1,function(x){sum(is.na(x))})
+SA1 <- SA1[SA1$na.sum < 3,]
+
+## Removing MoveIn and MoveOut dates 
+SA1$MoveInDate = NULL
+SA1$MoveOutDate = NULL
+str(SA1)
+
+### Converting to as.factor 
+SA1$MoveinYear = as.factor(as.character(SA1$MoveinYear))
+SA1$MoveOutYear <- as.factor(as.character(SA1$MoveOutYear))
+SA1$na.sum = NULL
+SA1$ZoneCode = as.factor(as.character(SA1$ZoneCode))
+
+SA1 = SA1[!is.na(SA1$ZoneCode),]
+
+## Applying KNNImputation to fill the "NA" values 
+library(DMwR)
+Final_data <- knnImputation(SA1,k=5)
+
+
+write.csv(x = Final_data,file = "Final_data.csv",row.names = F)
+
+```
+
